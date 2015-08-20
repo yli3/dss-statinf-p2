@@ -1,0 +1,190 @@
+---
+title: "The effect of vitamin C on tooth growth in guinea pigs"
+author: "Student"
+date: "August 19, 2015"
+output: 
+  pdf_document
+---
+```{r preload, echo = FALSE}
+  # Libraries.
+  library(data.table)
+  library(ggplot2)
+
+  # Load and process data.
+  data(ToothGrowth)
+  tg <- data.table(
+    supplement = factor(
+      ToothGrowth$supp,
+      levels = unique(ToothGrowth$supp),
+      labels = c("Ascorbic Acid", "Orange Juice")
+    ),
+    length = ToothGrowth$len,
+    dose = ToothGrowth$dose
+  )
+  
+  # ggplot settings
+  update_geom_defaults("point", list(colour = NULL))
+
+```
+
+## Introduction
+
+In this assignment we'll use **R** to explore, study, and draw conclusions about the effect of vtamin C on tooth growth in guinea pigs.
+
+The data used is the **ToothGrowth** dataset from R's `datasets` package, and contains observations from 60 guinea pigs, divided into six equal groups. Each group of 10 guinea pigs received one of three dosages of vitamin C (0.5, 1, and 2 mg/day) via one of two delivery methods (orange juice or ascorbic acid), and post-treatment odontoblast length was measured.
+
+The data comes from a [1947 study by Crampton, E.W](http://jn.nutrition.org/content/33/5/491.full.pdf).
+
+## Exploratory Data Analysis
+To visually explore the sample data from each of the six groups of 10 guinea pigs, we use a boxplot. The boxplot shows quartiles and outliers (indicated by solid dots). Additionally, we've drawn a dashed line connecting the mean of each group.
+
+```{r exploratory_boxplot_both, echo = FALSE, fig.height = 4, fig.cap = TRUE} 
+  
+  ggplot(tg, aes(x = factor(dose), y = length, colour = supplement)) +
+    geom_boxplot() +
+    stat_summary(
+      fun.y = mean, aes(group = supplement), 
+      geom = "line", 
+      linetype = "longdash", 
+      size = 0.8
+    ) +
+    labs(x = "\ndose (mg/day)", y = "length (microns)\n") +
+    labs(title = "Guinea pig odontoblast length following vitamin C treatment\n")
+```
+
+A few things are apparent about the *sample* data; odontoblast length were on average higher in groups with higher dosage, and at `0.5 mg/day` and `1.0 mg/day` dosage groups, supplement means were quite distinct. However, in order to make inferences about *population* means, we turn to hypothesis testing.
+
+## Hypothesis testing
+
+We will use hypothesis testing to quantitatively evaluate whether a particular statement about the unknown population means is *likely*. We begin by constructing two hypotheses, the **null hypothesis** and the **alternate hypothesis**. For two groups $X$ and $Y$ with unknown population means $\mu_X$ and $\mu_Y$ respectively, we construct:
+
+1. **Null hypothesis H<sub>0</sub>**: $\mu_X - \mu_Y = 0$
+2. **Alternate hypothesis H<sub>a</sub>**: $\mu_X - \mu_Y \ne 0$
+
+In order to compare $X$ and $Y$, we must select a suitable two-sample test given the parameters of our experiment, and evaluate the null hypothesis using it.
+
+## Assumptions
+We make the following basic assumptions:
+
+1. $X$ and $Y$ are i.i.d normal random variables with mean and finite variance.
+1. $X$ and $Y$ are independent of each other.
+1. $\bar{X}$ and $\bar{Y}$ follow a known distribution.
+
+Because there are 60 distinct guinea pigs in the data (a point once ambiguous in the **R** documentation, but updated as of R 3.2.2), the $X$ and $Y$ populations for no two groups overlap, and we do not have a paired experiment.
+
+For small sample sizes (in our case $10$ guinea pigs in each group) it is more robust to assume that the sample means follow a *t* distribution. For larger samples, the sample mean may instead be treated as normal, owing to the Central Limit Theorem.
+
+The box plot has revealed significant differences in sample variance between the two groups (this is demonstrated explicitly in the Appendix). Because we cannot assume equal variances, we select **Welch's _t_ test** which only requires independence and normality of the populations.
+
+## Welch's t test
+
+Welch's *t* test is a two-sample statistical test evaluating whether the population means of two populations is equal or distinct. It was introduced in the lectures and will be evaluated using the `t.test` function in **R**. A brief summary of test output follows.
+
+### Confidence interval
+Welch's *t* test assigns a confidence interval for the difference in population means $\mu_X - \mu_Y$ in terms of known or calculable sample statistics. For a chosen $(1 - \alpha) \cdot 100$% confidence level (usually 95%), it is given by:
+
+$$\bar{X} - \bar{Y} \pm t_{\alpha/2,df} \sqrt{\frac{s^2_X}{n_X} + \frac{s^2_Y}{n_Y}}$$
+
+where $t$ is the critical $t$ value (calculable via `qt()`) and the degrees of freedom $df$ is given by:
+
+$$df = \frac{(\frac{s^2_X}{n_X} + \frac{s^2_Y}{n_Y})^2}{\frac{(s^2_X/n_X)^2}{n_X - 1} + \frac{(s^2_Y/n_Y)^2}{n_Y - 1}}$$
+
+If we chose $\alpha$ = 0.5, the resulting 95% confidence interval expresses the idea that 95% of samples will yield a confidence interval that contains the true statistic $\mu_X - \mu_Y$. Therefore, it's unlikely that our observed sample has produced a calculated confidence interval that does *not* include $\mu_X - \mu_Y$, and more simply, we may say there is 95% confidence that the true statistic falls within the interval observed.
+
+The immediate consequences of the 95% confidence interval are:
+
+1. If the interval contains zero, then we cannot reject the **H<sub>0</sub>** with 95% confidence.  
+1. If the interval does not contain zero, then we reject **H<sub>0</sub>** in favor of **H<sub>a</sub>** with 95% confidence.  
+    a. If the interval is strictly positive, then we express confidence in $\mu_X > \mu_Y$.  
+    b. If the interval is strictly negative, then we express confidence in $\mu_Y > \mu_X$.  
+
+### The p value
+
+The *p* value is the result of the statistical test which we select, and quantifies the success or failure of the null hypothesis **H<sub>0</sub>**. It is the probability that the null hypothesis version of population parameters could have yielded the observed sample statistic. 
+
+If the *p* value is very small, then the evidence against the null hypothesis is considered to be great. In other words, it is considered unlikely to have observed so extreme a result as we have in the sample. Usually, for *p* $\leq 0.5$, the null hypothesis is rejected, and for *p* $> 0.5$ the null hypothesis cannot be rejected.
+
+## Differences in dosage
+
+Taking $X$ to be the lower dosage group and $Y$ to be the higher dosage group, we evaluate for each supplement:
+
+1. **H<sub>0</sub>**: $\mu_X - \mu_Y = 0$
+1. **H<sub>a</sub>**: $\mu_X - \mu_Y \ne 0$
+
+```{r welch_output_function, echo = FALSE}
+  welch.test <- function(x, data, ...) {
+    o <- t.test(x, data = data, 
+      alternative = "two.sided",
+      mu = 0,
+      paired = FALSE,
+      var.equal = FALSE,
+      conf.level = 0.95,
+      ...
+    )
+    
+    display.conf.int <- paste(
+      signif(o$conf.int[1], 6),
+      signif(o$conf.int[2], 6),
+      sep = ", "
+    )
+    
+    cat("95% confidence interval: ", display.conf.int, "\n")
+    cat("p value: ", signif(o$p.value, 6))
+    
+    invisible(o)
+  }
+```  
+### Orange Juice
+
+```{r welch_orange_juice}
+  welch.test(length ~ dose, 
+    data = tg[(dose == 0.5 | dose == 1.0) & (supplement == "Orange Juice")])
+  
+  welch.test(length ~ dose, 
+    data = tg[(dose == 1.0 | dose == 2.0) & (supplement == "Orange Juice")])
+  
+  welch.test(length ~ dose, 
+    data = tg[(dose == 0.5 | dose == 2.0) & (supplement == "Orange Juice")])
+```
+
+There is a clear and strong support for greater odontoblast lengths in populations with higher dosages, in contradiction to the null hypothesis.
+
+### Ascorbic Acid
+
+```{r welch_ascorbic_acid}
+  welch.test(length ~ dose, 
+    data = tg[(dose == 0.5 | dose == 1.0) & (supplement == "Ascorbic Acid")])
+  
+  welch.test(length ~ dose, 
+    data = tg[(dose == 1.0 | dose == 2.0) & (supplement == "Ascorbic Acid")])
+  
+  welch.test(length ~ dose, 
+    data = tg[(dose == 0.5 | dose == 2.0) & (supplement == "Ascorbic Acid")])
+```  
+
+There is a clear and strong support for greater odontoblast lengths in populations with higher dosages, in contradiction to the null hypothesis.
+
+## Differences in supplement
+
+Taking $X$ to be the Ascorbic Acid group and $Y$ to be the Orange Juice group, we evaluate for each dosage level:
+
+1. **H<sub>0</sub>**: $\mu_X - \mu_Y = 0$
+1. **H<sub>a</sub>**: $\mu_X - \mu_Y \ne 0$
+
+```{r welch_supplement}
+  welch.test(length ~ supplement, data = tg[dose == 0.5])
+  welch.test(length ~ supplement, data = tg[dose == 1.0])
+  welch.test(length ~ supplement, data = tg[dose == 2.0])
+```  
+
+At `0.5` and `1.0` mg/day dosage, the low *p* value suggests that the null hypothesis is considered very unlikely to be true. The 95% confidence interval expresses high confidence that Ascorbic Acid populations have lower odontoblast length than Orange Juice populations.
+
+At `2.0` mg/day dosage, the remarkably high *p* value ($1 - p \leq 0.05$) expresses high confidence in the null hypothesis. We must consider it likely for the two population means to be equivalent.
+
+## Appendix
+
+
+```{r appendix_variance_compare}
+   tg[, var(length), by = .(supplement, dose)]
+
+```
