@@ -24,7 +24,6 @@ output:
   
   # ggplot settings
   update_geom_defaults("point", list(colour = NULL))
-
 ```
 
 ## Introduction
@@ -36,9 +35,9 @@ The data used is the **ToothGrowth** dataset from R's `datasets` package, and co
 The data comes from a [1947 study by Crampton, E.W](http://jn.nutrition.org/content/33/5/491.full.pdf).
 
 ## Exploratory Data Analysis
-To visually explore the sample data from each of the six groups of 10 guinea pigs, we use a boxplot. The boxplot shows quartiles and outliers (indicated by solid dots). Additionally, we've drawn a dashed line connecting the mean of each group.
+To visually explore the sample data from each of the six groups of 10 guinea pigs, we use a boxplot. The boxplot shows quartiles and outliers (indicated by solid dots). Additionally, we've drawn a dashed line connecting the mean of each group. Generating code may be found in the appendix.
 
-```{r exploratory_boxplot_both, echo = FALSE, fig.height = 4, fig.cap = TRUE} 
+```{r exploratory_boxplot, echo = FALSE, fig.height = 4, fig.cap = TRUE} 
   
   ggplot(tg, aes(x = factor(dose), y = length, colour = supplement)) +
     geom_boxplot() +
@@ -56,60 +55,28 @@ A few things are apparent about the *sample* data; odontoblast length were on av
 
 ## Hypothesis testing
 
-We will use hypothesis testing to quantitatively evaluate whether a particular statement about the unknown population means is *likely*. We begin by constructing two hypotheses, the **null hypothesis** and the **alternate hypothesis**. For two groups $X$ and $Y$ with unknown population means $\mu_X$ and $\mu_Y$ respectively, we construct:
+We will test for differences in the unknown population means between various sets of two guinea pig groups. For any two populations for which we have a sample $X$ and $Y$, we construct the following hypotheses:
 
-1. **Null hypothesis H<sub>0</sub>**: $\mu_X - \mu_Y = 0$
-2. **Alternate hypothesis H<sub>a</sub>**: $\mu_X - \mu_Y \ne 0$
+1. **Null hypothesis $H_0$**: $\mu_X - \mu_Y = 0$
+2. **Alternate hypothesis $H_a$**: $\mu_X - \mu_Y \ne 0$
 
-In order to compare $X$ and $Y$, we must select a suitable two-sample test given the parameters of our experiment, and evaluate the null hypothesis using it.
+It is assumed that $X$ and $Y$ are i.i.d normal random variables, with sample means $\bar{X}$ and $\bar{Y}$ following a known distribution. Because each sample group has small size $n = 10$, we treat their sample means as following a *t*, rather than normal distribution.
 
-## Assumptions
-We make the following basic assumptions:
+All 60 guinea pigs in the dataset are unique (see [R datasets documentation](https://stat.ethz.ch/R-manual/R-devel/library/datasets/html/ToothGrowth.html), and so for any two groups we assume $X$ and $Y$ to be independent of one another. No two groups involve paired subjects.
 
-1. $X$ and $Y$ are i.i.d normal random variables with mean and finite variance.
-1. $X$ and $Y$ are independent of each other.
-1. $\bar{X}$ and $\bar{Y}$ follow a known distribution.
+The box plot reveals significant differences in sample variance between groups, and in such cases we opt for **Welch's _t_ test**, a two-sample independent *t* test which does not assume equal population variances.
 
-Because there are 60 distinct guinea pigs in the data (a point once ambiguous in the **R** documentation, but updated as of R 3.2.2), the $X$ and $Y$ populations for no two groups overlap, and we do not have a paired experiment.
+### Conducting the tests
 
-For small sample sizes (in our case $10$ guinea pigs in each group) it is more robust to assume that the sample means follow a *t* distribution. For larger samples, the sample mean may instead be treated as normal, owing to the Central Limit Theorem.
+We will use **R**'s `t.test` function in a custom wrapper for terse output. The **ToothGrowth** dataset is supplied to the `tg` variable as a data.table. Full code is supplied in the Appendix.
 
-The box plot has revealed significant differences in sample variance between the two groups (this is demonstrated explicitly in the Appendix). Because we cannot assume equal variances, we select **Welch's _t_ test** which only requires independence and normality of the populations.
+In each case, we will construct $H_0$ and $H_a$ as above.
 
-## Welch's t test
-
-Welch's *t* test is a two-sample statistical test evaluating whether the population means of two populations is equal or distinct. It was introduced in the lectures and will be evaluated using the `t.test` function in **R**. A brief summary of test output follows.
-
-### Confidence interval
-Welch's *t* test assigns a confidence interval for the difference in population means $\mu_X - \mu_Y$ in terms of known or calculable sample statistics. For a chosen $(1 - \alpha) \cdot 100$% confidence level (usually 95%), it is given by:
-
-$$\bar{X} - \bar{Y} \pm t_{\alpha/2,df} \sqrt{\frac{s^2_X}{n_X} + \frac{s^2_Y}{n_Y}}$$
-
-where $t$ is the critical $t$ value (calculable via `qt()`) and the degrees of freedom $df$ is given by:
-
-$$df = \frac{(\frac{s^2_X}{n_X} + \frac{s^2_Y}{n_Y})^2}{\frac{(s^2_X/n_X)^2}{n_X - 1} + \frac{(s^2_Y/n_Y)^2}{n_Y - 1}}$$
-
-If we chose $\alpha$ = 0.5, the resulting 95% confidence interval expresses the idea that 95% of samples will yield a confidence interval that contains the true statistic $\mu_X - \mu_Y$. Therefore, it's unlikely that our observed sample has produced a calculated confidence interval that does *not* include $\mu_X - \mu_Y$, and more simply, we may say there is 95% confidence that the true statistic falls within the interval observed.
-
-The immediate consequences of the 95% confidence interval are:
-
-1. If the interval contains zero, then we cannot reject the **H<sub>0</sub>** with 95% confidence.  
-1. If the interval does not contain zero, then we reject **H<sub>0</sub>** in favor of **H<sub>a</sub>** with 95% confidence.  
-    a. If the interval is strictly positive, then we express confidence in $\mu_X > \mu_Y$.  
-    b. If the interval is strictly negative, then we express confidence in $\mu_Y > \mu_X$.  
-
-### The p value
-
-The *p* value is the result of the statistical test which we select, and quantifies the success or failure of the null hypothesis **H<sub>0</sub>**. It is the probability that the null hypothesis version of population parameters could have yielded the observed sample statistic. 
-
-If the *p* value is very small, then the evidence against the null hypothesis is considered to be great. In other words, it is considered unlikely to have observed so extreme a result as we have in the sample. Usually, for *p* $\leq 0.5$, the null hypothesis is rejected, and for *p* $> 0.5$ the null hypothesis cannot be rejected.
+Our wrapper function `welch.test` will display the 95% confidence interval, as well as the `p value`. For $p \leq 0.5$ we may express high confidence in preferring the alternate hypothesis, as a sample observation so extreme would be unlikely under the null hypothesis. The confidence interval will let us know whether we may say $X$ or $Y$ is expected to be greater.
 
 ## Differences in dosage
 
-Taking $X$ to be the lower dosage group and $Y$ to be the higher dosage group, we evaluate for each supplement:
-
-1. **H<sub>0</sub>**: $\mu_X - \mu_Y = 0$
-1. **H<sub>a</sub>**: $\mu_X - \mu_Y \ne 0$
+Where $X$ is the lower dosage group and $Y$ is the higher dosage group, we evaluate for each supplement type:
 
 ```{r welch_output_function, echo = FALSE}
   welch.test <- function(x, data, ...) {
@@ -128,10 +95,8 @@ Taking $X$ to be the lower dosage group and $Y$ to be the higher dosage group, w
       sep = ", "
     )
     
-    cat("95% confidence interval: ", display.conf.int, "\n")
-    cat("p value: ", signif(o$p.value, 6))
-    
-    invisible(o)
+    cat("95% confidence interval: ", display.conf.int,
+        "p-value: ", signif(o$p.value, 6))
   }
 ```  
 ### Orange Juice
@@ -147,8 +112,6 @@ Taking $X$ to be the lower dosage group and $Y$ to be the higher dosage group, w
     data = tg[(dose == 0.5 | dose == 2.0) & (supplement == "Orange Juice")])
 ```
 
-There is a clear and strong support for greater odontoblast lengths in populations with higher dosages, in contradiction to the null hypothesis.
-
 ### Ascorbic Acid
 
 ```{r welch_ascorbic_acid}
@@ -162,14 +125,9 @@ There is a clear and strong support for greater odontoblast lengths in populatio
     data = tg[(dose == 0.5 | dose == 2.0) & (supplement == "Ascorbic Acid")])
 ```  
 
-There is a clear and strong support for greater odontoblast lengths in populations with higher dosages, in contradiction to the null hypothesis.
-
 ## Differences in supplement
 
-Taking $X$ to be the Ascorbic Acid group and $Y$ to be the Orange Juice group, we evaluate for each dosage level:
-
-1. **H<sub>0</sub>**: $\mu_X - \mu_Y = 0$
-1. **H<sub>a</sub>**: $\mu_X - \mu_Y \ne 0$
+Where $X$ is the Ascorbic Acid group and $Y$ is the Orange Juice group, we evaluate for each dosage level:
 
 ```{r welch_supplement}
   welch.test(length ~ supplement, data = tg[dose == 0.5])
@@ -177,14 +135,65 @@ Taking $X$ to be the Ascorbic Acid group and $Y$ to be the Orange Juice group, w
   welch.test(length ~ supplement, data = tg[dose == 2.0])
 ```  
 
-At `0.5` and `1.0` mg/day dosage, the low *p* value suggests that the null hypothesis is considered very unlikely to be true. The 95% confidence interval expresses high confidence that Ascorbic Acid populations have lower odontoblast length than Orange Juice populations.
+## Conclusions
+For both Orange Juice and Ascorbic Acid treated populations, there is statistically significant ($p \leq 0.5$) support for greater mean odontoblast length with increase in dosage, as shown by strictly positive 95% confidence intervals.
 
-At `2.0` mg/day dosage, the remarkably high *p* value ($1 - p \leq 0.05$) expresses high confidence in the null hypothesis. We must consider it likely for the two population means to be equivalent.
+At `0.5` and `1.0` mg/day dosage, there is statistically significant ($p \leq 0.5$) support for greater opulation mean in the Orange Juice versus the Ascorbic Acid treated populations, as shown by the 95% confidence intervals.
 
-## Appendix
+At `2.0` mg/day dosage, the remarkably high *p* value ($1 - p \leq 0.05$) expresses high confidence in the null hypothesis. We must consider it likely for the population means between the Orange Juice and Ascorbic Acid treated populations to be equivalent.
 
+\section*{\centering{Appendix}}
+
+### Confidence intervals
+Welch's *t* test assigns a confidence interval for the difference in population means $\mu_X - \mu_Y$ in terms of known or calculable sample statistics. For a chosen $(1 - \alpha) \cdot 100$% confidence level (usually 95%), it is given by:
+
+$$\bar{X} - \bar{Y} \pm t_{\alpha/2,df} \sqrt{\frac{s^2_X}{n_X} + \frac{s^2_Y}{n_Y}}$$
+
+where $t$ is the critical $t$ value (calculable via `qt()`) and the degrees of freedom $df$ is given by:
+
+$$df = \frac{(\frac{s^2_X}{n_X} + \frac{s^2_Y}{n_Y})^2}{\frac{(s^2_X/n_X)^2}{n_X - 1} + \frac{(s^2_Y/n_Y)^2}{n_Y - 1}}$$
+
+If we chose $\alpha$ = 0.5, the resulting 95% confidence interval expresses the idea that 95% of samples will yield a confidence interval that contains the true statistic $\mu_X - \mu_Y$. Therefore, it's unlikely that our observed sample has produced a calculated confidence interval that does *not* include $\mu_X - \mu_Y$, and more simply, we may say there is 95% confidence that the true statistic falls within the interval observed.
+
+The immediate consequences of the 95% confidence interval are:
+
+1. If the interval contains zero, then there is not enough evidence to confidently assert that $H_0$ is unlikely.
+1. If the interval does not contain zero, then $H_0$ is considered unlikely by the evidence.
+    a. If the interval is strictly positive, then we express confidence that $\mu_X > \mu_Y$.  
+    b. If the interval is strictly negative, then we express confidence that $\mu_Y > \mu_X$.  
+
+### The p value
+
+The *p* value is the result of the statistical test which we select, and quantifies the success or failure of the null hypothesis **$H_0$**. It is the probability that the null hypothesis version of population parameters could have yielded the observed sample statistic. 
+
+If the *p* value is very small, then the evidence against the null hypothesis is considered to be great. Usually we consider this to be for $p \leq 0.05$. In other words, it is considered unlikely to have observed so extreme a result as we have in the sample. 
+
+### Variance comparison
+
+To complement the boxplot, we can also calculate sample variance for each group explicitly. Note that between some groups, the variances may be regarded as reasonably close, but it seems more reasonable to avoid assuming that guinea pigs with either different vitamin C intake methods or dosage levels would have identical population variance in odontoblast length. Welch's *t* test is thus more generally applicable, and it is the test conducted by default via `t.test`.
 
 ```{r appendix_variance_compare}
-   tg[, var(length), by = .(supplement, dose)]
-
+   tg[, .(variance = var(length)), by = .(supplement, dose)]
 ```
+
+### Preliminary R code
+```{r duplicate_preload, ref.label = "preload", results = "Markup"}
+```
+
+### Welch test wrapper function
+```{r duplicate_welch_function, ref.label = "welch_output_function", results = "markup"}
+```
+
+### Plot code
+```{r duplicate_boxplot, ref.label = "exploratory_boxplot", results = "markup", fig.show = "hide"}
+```
+
+### Sample verbose t.test output
+```{r terse_ttest_output}
+  t.test(length ~ supplement, data = tg[dose == 0.5])  
+  t.test(length ~ dose, 
+    data = tg[(dose == 0.5 | dose == 1.0) & supplement == "Orange Juice"])  
+```
+
+### Closing Remarks
+Thank you for reading! Hope you are enjoying the class(es)!
